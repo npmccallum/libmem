@@ -23,9 +23,6 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-#define __MEM_CLEANUP(f) __attribute__((cleanup(f)))
-#define __MEM_PRINTF(a, b) __attribute__((format(__printf__, a, b)))
-
 struct mem_link {
     struct mem_link *prev;
     struct mem_link *next;
@@ -72,14 +69,15 @@ mem_strdup(const char *str);
 char *
 mem_strndup(const char *str, size_t n);
 
-char * __MEM_PRINTF(1, 0)
+char * __attribute__((format(__printf__, 1, 0)))
 mem_vasprintf(const char *fmt, va_list ap);
 
-char * __MEM_PRINTF(1, 2)
+char * __attribute__((format(__printf__, 1, 2)))
 mem_asprintf(const char *fmt, ...);
 
 #define mem_scope(name) \
-    struct mem_scope __MEM_CLEANUP(_mem_oscope) name = _mem_iscope(&name)
+    struct mem_scope __attribute__((cleanup(_mem_oscope))) \
+        name = _mem_iscope(&name)
 
 #define mem_new(t) \
 	((t *) mem_calloc(1, sizeof(t)))

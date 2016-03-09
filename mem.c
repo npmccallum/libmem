@@ -85,7 +85,7 @@ _mem_iscope(struct mem_scope *scope)
     scope->list.next = &scope->list;
     scope->next = stack;
     stack = scope;
-    
+
     return *scope;
 }
 
