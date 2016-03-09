@@ -36,11 +36,6 @@ struct mem_scope {
     struct mem_scope *next;
 };
 
-enum mem_flags {
-  mem_flag_none = 0,
-  mem_flag_secure = 1,
-};
-
 struct mem_scope
 _mem_iscope(struct mem_scope *scope);
 
@@ -64,8 +59,8 @@ mem_size(void *ptr);
 void *
 mem_steal(void *ptr, void *parent);
 
-bool
-mem_flags(void *ptr, enum mem_flags flags);
+void *
+mem_secure(void *ptr);
 
 
 void *

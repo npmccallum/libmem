@@ -29,9 +29,13 @@
 #define containerof(ptr, type, field) \
     (type *) (((char *) ptr) - offsetof(type, field))
 
+struct flags {
+    int secure : 1;
+};
+
 struct mem {
     size_t size;
-    enum mem_flags flags;
+    struct flags flags;
     struct mem_link list;
     struct mem_link link;
     alignas(16) unsigned char body[];
@@ -63,9 +67,9 @@ mem_free(struct mem *m)
     while (m->list.next != &m->list)
         mem_free(containerof(m->list.next, struct mem, link));
 
-    if (m->flags & mem_flag_secure) {
+    if (m->flags.secure) {
         memset(m->body, 0, m->size);
-        munlock(m, m->size + sizeof(struct mem));
+        munlock(m->body, m->size);
     }
 
     free(m);
@@ -110,10 +114,9 @@ mem_calloc(size_t count, size_t size)
         return NULL;
 
     m->size = count * size;
-    m->flags = mem_flag_none;
     link_push(&stack->list, &m->link);
 
-    return &m->body;
+    return m->body;
 }
 
 void *
@@ -129,10 +132,10 @@ mem_malloc(size_t size)
         return NULL;
 
     m->size = size;
-    m->flags = mem_flag_none;
+    m->flags = (struct flags) {};
     link_push(&stack->list, &m->link);
 
-    return &m->body;
+    return m->body;
 }
 
 
@@ -168,22 +171,17 @@ mem_steal(void *ptr, void *parent)
     return ptr;
 }
 
-bool
-mem_flags(void *ptr, enum mem_flags flags)
+void *
+mem_secure(void *ptr)
 {
     struct mem *m = containerof(ptr, struct mem, body);
 
-    if (flags & mem_flag_secure) {
-        if (m->flags & mem_flag_secure)
-            return true;
-
-        if (mlock(m, m->size + sizeof(struct mem)) != 0)
-            return false;
-
-        m->flags |= mem_flag_secure;
+    if (!m->flags.secure && mlock(m->body, m->size) != 0) {
+        mem_free(m);
+        return NULL;
     }
 
-    return true;
+    return ptr;
 }
 
 void *
