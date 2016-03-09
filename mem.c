@@ -214,19 +214,19 @@ mem_strdup(const char *str)
 }
 
 char *
-mem_strndup(const char *str, size_t n)
+mem_strndup(const char *str, size_t size)
 {
     char *tmp = NULL;
 
     if (!str)
         return NULL;
 
-    tmp = mem_malloc(n + 1);
+    tmp = mem_malloc(size + 1);
     if (!tmp)
         return NULL;
 
-    strncpy(tmp, str, n);
-    tmp[n] = '\0';
+    strncpy(tmp, str, size);
+    tmp[size] = '\0';
     return tmp;
 }
 
