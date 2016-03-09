@@ -42,7 +42,7 @@ _mem_oscope(struct mem_scope *scope);
 /**
  * Allocates zeroed memory into the current scope
  *
- * This function has the same contract as calloc().
+ * @see calloc()
  *
  * @param count the number of elements
  * @param size the element size
@@ -55,7 +55,7 @@ mem_calloc(size_t count, size_t size);
 /**
  * Allocates memory into the current scope
  *
- * This function has the same contract as malloc().
+ * @see malloc()
  *
  * @param size the allocation size
  *
@@ -67,7 +67,7 @@ mem_malloc(size_t size);
 /**
  * Resizes an existing allocation
  *
- * This function has the same contract as realloc().
+ * @see realloc()
  *
  * @param ptr the pointer to the memory to be reallocated
  * @param size the new allocation size
@@ -80,7 +80,7 @@ mem_realloc(void *ptr, size_t size);
 /**
  * Frees an allocation
  *
- * This function has the same contract as free().
+ * @see free()
  *
  * @param ptr the pointer to an existing allocation
  */
@@ -143,7 +143,6 @@ mem_destructor(void *ptr, void (*func)(void *));
 /**
  * Duplicates the input data into a new allocation in the current context
  *
- *
  * @param ptr the pointer to the memory to be copied
  * @param size the size of the memory to copy
  *
@@ -155,7 +154,7 @@ mem_dup(const void *ptr, size_t size);
 /**
  * Duplicates a string into a new allocation in the current context
  *
- * This function has the same contract as strdup().
+ * @see strdup()
  *
  * @param str the string to copy
  *
@@ -167,7 +166,7 @@ mem_strdup(const char *str);
 /**
  * Duplicates a partial string into a new allocation in the current context
  *
- * This function has the same contract as strndup().
+ * @see strndup()
  *
  * @param str the string to copy
  * @param size the maximum length of the string to copy
@@ -180,7 +179,7 @@ mem_strndup(const char *str, size_t size);
 /**
  * Allocates a formatted string into a new allocation in the current context
  *
- * This function has a similar contract to vasprintf().
+ * @see vasprintf()
  *
  * @param fmt the string format
  * @param ap the argument vector
@@ -193,7 +192,7 @@ mem_vasprintf(const char *fmt, va_list ap);
 /**
  * Allocates a formatted string into a new allocation in the current context
  *
- * This function has a similar contract to asprintf().
+ * @see asprintf()
  *
  * @param fmt the string format
  * @param ap the argument vector
