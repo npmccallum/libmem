@@ -66,6 +66,11 @@ main(int argc, char *argv[])
     }
     assert(called);
 
+    /* Test mem_free(). */
+    called = false;
+    mem_free(mem_destructor(mem_malloc(1), destructor));
+    assert(called);
+
     /* Test mem_steal(). */
     assert(tmp = mem_malloc(1));
     {
@@ -74,6 +79,8 @@ main(int argc, char *argv[])
         assert(mem_steal(mem_destructor(mem_malloc(1), destructor), tmp));
     }
     assert(!called);
+    mem_free(tmp);
+    assert(called);
 
     /* Test mem_strdup() and mem_strndup(). */
     assert(strcmp("foo", mem_strdup("foo")) == 0);
@@ -82,11 +89,6 @@ main(int argc, char *argv[])
 
     /* Test mem_asprintf() (and implicitly mem_vasprintf()). */
     assert(strcmp("foo", mem_asprintf("%s", "foo")) == 0);
-
-    /* Test mem_free(). */
-    called = false;
-    mem_free(mem_destructor(mem_malloc(1), destructor));
-    assert(called);
 
     /* Test mem_new(). */
     assert(mem_size(mem_new(int)) == sizeof(int));
