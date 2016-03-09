@@ -27,7 +27,7 @@
 #include <stdio.h>
 
 #define containerof(ptr, type, field) \
-    (type *) (((char *) ptr) - offsetof(type, field))
+    ((type *) (((char *) ptr) - offsetof(type, field)))
 
 struct flags {
     int secure : 1;
@@ -60,25 +60,6 @@ link_pop(struct mem_link *item)
     item->next->prev = item->prev;
 }
 
-static void
-mem_free(struct mem *m)
-{
-    link_pop(&m->link);
-
-    if (m->destructor)
-        m->destructor(m->body);
-
-    while (m->list.next != &m->list)
-        mem_free(containerof(m->list.next, struct mem, link));
-
-    if (m->flags.secure) {
-        memset(m->body, 0, m->size);
-        munlock(m->body, m->size);
-    }
-
-    free(m);
-}
-
 struct mem_scope
 _mem_iscope(struct mem_scope *scope)
 {
@@ -100,7 +81,7 @@ _mem_oscope(struct mem_scope *scope)
         return;
 
     while (stack->list.next != &stack->list)
-        mem_free(containerof(stack->list.next, struct mem, link));
+        mem_free(containerof(stack->list.next, struct mem, link)->body);
 
     stack = stack->next;
 }
@@ -154,6 +135,30 @@ mem_realloc(void *ptr, size_t size)
     return mem_malloc(size);
 }
 
+void
+mem_free(void *ptr)
+{
+    struct mem *m = containerof(ptr, struct mem, body);
+
+    if (!ptr)
+        return;
+
+    link_pop(&m->link);
+
+    if (m->destructor)
+        m->destructor(m->body);
+
+    while (m->list.next != &m->list)
+        mem_free(containerof(m->list.next, struct mem, link)->body);
+
+    if (m->flags.secure) {
+        memset(m->body, 0, m->size);
+        munlock(m->body, m->size);
+    }
+
+    free(m);
+}
+
 size_t
 mem_size(void *ptr)
 {
@@ -181,7 +186,7 @@ mem_secure(void *ptr)
     struct mem *m = containerof(ptr, struct mem, body);
 
     if (!m->flags.secure && mlock(m->body, m->size) != 0) {
-        mem_free(m);
+        mem_free(ptr);
         return NULL;
     }
 
@@ -264,7 +269,7 @@ mem_vasprintf(const char *fmt, va_list ap)
 
     len = vsnprintf(tmp, len + 1, fmt, ap);
     if (len < 0) {
-        mem_free(containerof(tmp, struct mem, body));
+        mem_free(tmp);
         return NULL;
     }
 

@@ -78,6 +78,16 @@ void *
 mem_realloc(void *ptr, size_t size);
 
 /**
+ * Frees an allocation
+ *
+ * This function has the same contract as free().
+ *
+ * @param ptr the pointer to an existing allocation
+ */
+void
+mem_free(void *ptr);
+
+/**
  * Returns the size of the allocation
  *
  * @param ptr the pointer to an existing allocation
