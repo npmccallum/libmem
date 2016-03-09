@@ -99,6 +99,8 @@ mem_calloc(size_t count, size_t size)
         return NULL;
 
     m->size = count * size;
+    m->list.prev = &m->list;
+    m->list.next = &m->list;
     link_push(&stack->list, &m->link);
 
     return m->body;
@@ -117,7 +119,10 @@ mem_malloc(size_t size)
         return NULL;
 
     m->size = size;
+    m->destructor = NULL;
     m->flags = (struct flags) {};
+    m->list.prev = &m->list;
+    m->list.next = &m->list;
     link_push(&stack->list, &m->link);
 
     return m->body;
