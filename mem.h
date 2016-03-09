@@ -112,12 +112,23 @@ mem_steal(void *ptr, void *parent);
  *
  * If the securing operation fails, the ptr is freed.
  *
- * @param ptr the pointer to an existing allocation
- *
  * @return the ptr value or NULL on failure
  */
 void *
 mem_secure(void *ptr);
+
+/**
+ * Sets a function to be called before an allocation is freed
+ *
+ * This function always succeeds if ptr != NULL.
+ *
+ * @param ptr the pointer to an existing allocation
+ * @param func the destructor function to call
+ *
+ * @return the ptr value
+ */
+void *
+mem_destructor(void *ptr, void (*func)(void *));
 
 /**
  * Duplicates the input data into a new allocation in the current context

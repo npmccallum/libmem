@@ -38,6 +38,7 @@ struct mem {
     struct flags flags;
     struct mem_link list;
     struct mem_link link;
+    void (*destructor)(void *);
     alignas(16) unsigned char body[];
 };
 
@@ -63,6 +64,9 @@ static void
 mem_free(struct mem *m)
 {
     link_pop(&m->link);
+
+    if (m->destructor)
+        m->destructor(m->body);
 
     while (m->list.next != &m->list)
         mem_free(containerof(m->list.next, struct mem, link));
@@ -180,6 +184,17 @@ mem_secure(void *ptr)
         mem_free(m);
         return NULL;
     }
+
+    return ptr;
+}
+
+void *
+mem_destructor(void *ptr, void (*func)(void *))
+{
+    struct mem *m = containerof(ptr, struct mem, body);
+
+    if (m)
+        m->destructor = func;
 
     return ptr;
 }
