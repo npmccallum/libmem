@@ -91,9 +91,6 @@ mem_calloc(size_t count, size_t size)
 {
     struct mem *m = NULL;
 
-    if (!stack)
-        return NULL;
-
     m = calloc(1, count * size + sizeof(struct mem));
     if (!m)
         return NULL;
@@ -101,7 +98,11 @@ mem_calloc(size_t count, size_t size)
     m->size = count * size;
     m->list.prev = &m->list;
     m->list.next = &m->list;
-    link_push(&stack->list, &m->link);
+    m->link.prev = &m->link;
+    m->link.next = &m->link;
+
+    if (stack)
+        link_push(&stack->list, &m->link);
 
     return m->body;
 }
@@ -110,9 +111,6 @@ void *
 mem_malloc(size_t size)
 {
     struct mem *m = NULL;
-
-    if (!stack)
-        return NULL;
 
     m = malloc(size + sizeof(struct mem));
     if (!m)
@@ -123,7 +121,11 @@ mem_malloc(size_t size)
     m->flags = (struct flags) {};
     m->list.prev = &m->list;
     m->list.next = &m->list;
-    link_push(&stack->list, &m->link);
+    m->link.prev = &m->link;
+    m->link.next = &m->link;
+
+    if (stack)
+        link_push(&stack->list, &m->link);
 
     return m->body;
 }

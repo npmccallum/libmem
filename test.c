@@ -35,13 +35,20 @@ main(int argc, char *argv[])
 {
     void *tmp = NULL;
 
-    assert(!mem_malloc(1));
-    assert(!mem_calloc(1, 1));
-    assert(!mem_realloc(NULL, 1));
-    assert(!mem_dup(&(char) {'c'}, 1));
-    assert(!mem_strdup("c"));
-    assert(!mem_strndup("abc", 1));
-    assert(!mem_asprintf("%s", "foo"));
+    assert(tmp = mem_malloc(1));
+    mem_free(tmp);
+    assert(tmp = mem_calloc(1, 1));
+    mem_free(tmp);
+    assert(tmp = mem_realloc(NULL, 1));
+    mem_free(tmp);
+    assert(tmp = mem_dup(&(char) {'c'}, 1));
+    mem_free(tmp);
+    assert(tmp = mem_strdup("c"));
+    mem_free(tmp);
+    assert(tmp = mem_strndup("abc", 1));
+    mem_free(tmp);
+    assert(tmp = mem_asprintf("%s", "foo"));
+    mem_free(tmp);
 
     mem_scope(scope);
 
