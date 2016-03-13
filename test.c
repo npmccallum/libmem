@@ -22,7 +22,7 @@
 #include <stdbool.h>
 #include <string.h>
 
-static bool called = false;
+static volatile bool called = false;
 
 static void
 destructor(void *ptr)
@@ -35,67 +35,50 @@ main(int argc, char *argv[])
 {
     void *tmp = NULL;
 
-    assert(tmp = mem_malloc(1));
-    mem_free(tmp);
-    assert(tmp = mem_calloc(1, 1));
-    mem_free(tmp);
-    assert(tmp = mem_realloc(NULL, 1));
-    mem_free(tmp);
-    assert(tmp = mem_dup(&(char) {'c'}, 1));
-    mem_free(tmp);
-    assert(tmp = mem_strdup("c"));
-    mem_free(tmp);
-    assert(tmp = mem_strndup("abc", 1));
-    mem_free(tmp);
-    assert(tmp = mem_asprintf("%s", "foo"));
-    mem_free(tmp);
+    called = false;
+    assert(tmp = mem_destructor(malloc(1), destructor));
+    free(tmp);
+    assert(called);
+
+    called = false;
+    assert(tmp = mem_destructor(calloc(1, 1), destructor));
+    free(tmp);
+    assert(called);
+
+    called = false;
+    assert(tmp = mem_destructor(realloc(NULL, 1), destructor));
+    free(tmp);
+    assert(called);
 
     mem_scope(scope);
 
     /* Test allocations. */
-    assert(mem_malloc(1));
-    assert(mem_calloc(1, 1));
-    assert(mem_realloc(NULL, 1));
-    assert(mem_dup(&(char) {'c'}, 1));
-    assert(mem_strdup("c"));
-    assert(mem_strndup("abc", 1));
-    assert(mem_asprintf("%s", "foo"));
+    assert(malloc(1));
+    assert(calloc(1, 1));
+    assert(realloc(NULL, 1));
 
     /* Test mem_size() */
-    assert(mem_size(mem_malloc(1)) == 1);
-    assert(mem_size(mem_malloc(11)) == 11);
+    assert(mem_size(malloc(1)) == 1);
+    assert(mem_size(malloc(11)) == 11);
 
-    /* Test mem_destructor(). */
+    /* Test scoped destruction. */
+    called = false;
     {
         mem_scope(scope0);
-        called = false;
-        assert(mem_destructor(mem_malloc(1), destructor));
+        assert(mem_destructor(malloc(1), destructor));
     }
-    assert(called);
-
-    /* Test mem_free(). */
-    called = false;
-    mem_free(mem_destructor(mem_malloc(1), destructor));
     assert(called);
 
     /* Test mem_steal(). */
-    assert(tmp = mem_malloc(1));
+    called = false;
+    assert(tmp = malloc(1));
     {
         mem_scope(scope0);
-        called = false;
-        assert(mem_steal(mem_destructor(mem_malloc(1), destructor), tmp));
+        assert(mem_steal(mem_destructor(malloc(1), destructor), tmp));
     }
     assert(!called);
-    mem_free(tmp);
+    free(tmp);
     assert(called);
-
-    /* Test mem_strdup() and mem_strndup(). */
-    assert(strcmp("foo", mem_strdup("foo")) == 0);
-    assert(strcmp("foo", mem_strndup("foo", 2)) != 0);
-    assert(strcmp("fo", mem_strndup("foo", 2)) == 0);
-
-    /* Test mem_asprintf() (and implicitly mem_vasprintf()). */
-    assert(strcmp("foo", mem_asprintf("%s", "foo")) == 0);
 
     /* Test mem_new(). */
     assert(mem_size(mem_new(int)) == sizeof(int));

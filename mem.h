@@ -22,6 +22,7 @@
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdlib.h>
 
 struct mem_link {
     struct mem_link *prev;
@@ -38,54 +39,6 @@ _mem_iscope(struct mem_scope *scope);
 
 void
 _mem_oscope(struct mem_scope *scope);
-
-/**
- * Allocates zeroed memory into the current scope
- *
- * @see calloc()
- *
- * @param count the number of elements
- * @param size the element size
- *
- * @return newly allocated memory or NULL on failure
- */
-void *
-mem_calloc(size_t count, size_t size);
-
-/**
- * Allocates memory into the current scope
- *
- * @see malloc()
- *
- * @param size the allocation size
- *
- * @return newly allocated memory or NULL on failure
- */
-void *
-mem_malloc(size_t size);
-
-/**
- * Resizes an existing allocation
- *
- * @see realloc()
- *
- * @param ptr the pointer to the memory to be reallocated
- * @param size the new allocation size
- *
- * @return newly allocated memory or NULL on failure
- */
-void *
-mem_realloc(void *ptr, size_t size);
-
-/**
- * Frees an allocation
- *
- * @see free()
- *
- * @param ptr the pointer to an existing allocation
- */
-void
-mem_free(void *ptr);
 
 /**
  * Returns the size of the allocation
@@ -152,57 +105,6 @@ void *
 mem_dup(const void *ptr, size_t size);
 
 /**
- * Duplicates a string into a new allocation in the current context
- *
- * @see strdup()
- *
- * @param str the string to copy
- *
- * @return newly allocated memory or NULL on failure
- */
-char *
-mem_strdup(const char *str);
-
-/**
- * Duplicates a partial string into a new allocation in the current context
- *
- * @see strndup()
- *
- * @param str the string to copy
- * @param size the maximum length of the string to copy
- *
- * @return newly allocated memory or NULL on failure
- */
-char *
-mem_strndup(const char *str, size_t size);
-
-/**
- * Allocates a formatted string into a new allocation in the current context
- *
- * @see vasprintf()
- *
- * @param fmt the string format
- * @param ap the argument vector
- *
- * @return newly allocated memory or NULL on failure
- */
-char * __attribute__((format(__printf__, 1, 0)))
-mem_vasprintf(const char *fmt, va_list ap);
-
-/**
- * Allocates a formatted string into a new allocation in the current context
- *
- * @see asprintf()
- *
- * @param fmt the string format
- * @param ap the argument vector
- *
- * @return newly allocated memory or NULL on failure
- */
-char * __attribute__((format(__printf__, 1, 2)))
-mem_asprintf(const char *fmt, ...);
-
-/**
  * Defines the current memory scope
  *
  * This macro should be used at the start of every function that allocates
@@ -223,5 +125,5 @@ mem_asprintf(const char *fmt, ...);
  * @return newly allocated memory or NULL on failure
  */
 #define mem_new(type) \
-	((type *) mem_calloc(1, sizeof(type)))
+	((type *) calloc(1, sizeof(type)))
 

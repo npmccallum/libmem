@@ -17,14 +17,13 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#define _GNU_SOURCE
 #include "mem.h"
-#undef mem_scope
 
+#include <dlfcn.h>
 #include <stdalign.h>
-#include <stdlib.h>
 #include <sys/mman.h>
 #include <string.h>
-#include <stdio.h>
 
 #define containerof(ptr, type, field) \
     ((type *) (((char *) ptr) - offsetof(type, field)))
@@ -43,6 +42,21 @@ struct mem {
 };
 
 static __thread struct mem_scope *stack = NULL;
+static typeof(malloc) *sys_malloc = NULL;
+static typeof(calloc) *sys_calloc = NULL;
+static typeof(realloc) *sys_realloc = NULL;
+static typeof(free) *sys_free = NULL;
+
+static void __attribute__((constructor))
+loadsyms(void)
+{
+    sys_malloc = dlsym(RTLD_NEXT, "malloc");
+    sys_calloc = dlsym(RTLD_NEXT, "calloc");
+    sys_realloc = dlsym(RTLD_NEXT, "realloc");
+    sys_free = dlsym(RTLD_NEXT, "free");
+    if (!sys_malloc || !sys_calloc || !sys_realloc || !sys_free)
+        abort();
+}
 
 static void
 link_push(struct mem_link *list, struct mem_link *item)
@@ -58,6 +72,23 @@ link_pop(struct mem_link *item)
 {
     item->prev->next = item->next;
     item->next->prev = item->prev;
+}
+
+static void
+mem_init(struct mem *m, size_t size, struct mem_link *parent)
+{
+    m->size = size;
+    m->destructor = NULL;
+    m->flags = (struct flags) {};
+    m->list.prev = &m->list;
+    m->list.next = &m->list;
+    m->link.prev = &m->link;
+    m->link.next = &m->link;
+
+    if (parent)
+        link_push(parent, &m->link);
+    else if (stack)
+        link_push(&stack->list, &m->link);
 }
 
 struct mem_scope
@@ -81,69 +112,50 @@ _mem_oscope(struct mem_scope *scope)
         return;
 
     while (stack->list.next != &stack->list)
-        mem_free(containerof(stack->list.next, struct mem, link)->body);
+        free(containerof(stack->list.next, struct mem, link)->body);
 
     stack = stack->next;
 }
 
 void *
-mem_calloc(size_t count, size_t size)
+malloc(size_t size)
 {
     struct mem *m = NULL;
 
-    m = calloc(1, count * size + sizeof(struct mem));
+    m = sys_malloc(size + sizeof(struct mem));
     if (!m)
         return NULL;
 
-    m->size = count * size;
-    m->list.prev = &m->list;
-    m->list.next = &m->list;
-    m->link.prev = &m->link;
-    m->link.next = &m->link;
-
-    if (stack)
-        link_push(&stack->list, &m->link);
-
+    mem_init(m, size, NULL);
     return m->body;
 }
 
 void *
-mem_malloc(size_t size)
+calloc(size_t count, size_t size)
 {
     struct mem *m = NULL;
 
-    m = malloc(size + sizeof(struct mem));
+    m = sys_calloc(1, count * size + sizeof(struct mem));
     if (!m)
         return NULL;
 
-    m->size = size;
-    m->destructor = NULL;
-    m->flags = (struct flags) {};
-    m->list.prev = &m->list;
-    m->list.next = &m->list;
-    m->link.prev = &m->link;
-    m->link.next = &m->link;
-
-    if (stack)
-        link_push(&stack->list, &m->link);
-
+    mem_init(m, size, NULL);
     return m->body;
 }
 
-
 void *
-mem_realloc(void *ptr, size_t size)
+realloc(void *ptr, size_t size)
 {
     struct mem *m = containerof(ptr, struct mem, body);
 
     if (ptr)
-        return realloc(m, size + sizeof(struct mem));
+        return sys_realloc(m, size + sizeof(struct mem));
 
-    return mem_malloc(size);
+    return malloc(size);
 }
 
 void
-mem_free(void *ptr)
+free(void *ptr)
 {
     struct mem *m = containerof(ptr, struct mem, body);
 
@@ -156,14 +168,14 @@ mem_free(void *ptr)
         m->destructor(m->body);
 
     while (m->list.next != &m->list)
-        mem_free(containerof(m->list.next, struct mem, link)->body);
+        free(containerof(m->list.next, struct mem, link)->body);
 
     if (m->flags.secure) {
         memset(m->body, 0, m->size);
         munlock(m->body, m->size);
     }
 
-    free(m);
+    sys_free(m);
 }
 
 size_t
@@ -193,7 +205,7 @@ mem_secure(void *ptr)
     struct mem *m = containerof(ptr, struct mem, body);
 
     if (!m->flags.secure && mlock(m->body, m->size) != 0) {
-        mem_free(ptr);
+        free(ptr);
         return NULL;
     }
 
@@ -216,83 +228,11 @@ mem_dup(const void *ptr, size_t size)
 {
     void *tmp = NULL;
 
-    tmp = mem_malloc(size);
+    tmp = malloc(size);
     if (!tmp)
         return NULL;
 
     memcpy(tmp, ptr, size);
-    return tmp;
-}
-
-char *
-mem_strdup(const char *str)
-{
-    char *tmp = NULL;
-
-    if (!str)
-        return NULL;
-
-    tmp = mem_malloc(strlen(str) + 1);
-    if (!tmp)
-        return NULL;
-
-    strcpy(tmp, str);
-    return tmp;
-}
-
-char *
-mem_strndup(const char *str, size_t size)
-{
-    char *tmp = NULL;
-
-    if (!str)
-        return NULL;
-
-    tmp = mem_malloc(size + 1);
-    if (!tmp)
-        return NULL;
-
-    strncpy(tmp, str, size);
-    tmp[size] = '\0';
-    return tmp;
-}
-
-char * __attribute__((format(__printf__, 1, 0)))
-mem_vasprintf(const char *fmt, va_list ap)
-{
-    char *tmp = NULL;
-    va_list copy;
-    int len = 0;
-
-    va_copy(copy, ap);
-    len = vsnprintf(NULL, 0, fmt, copy);
-    va_end(copy);
-    if (len < 0)
-        return NULL;
-
-    tmp = mem_malloc(len + 1);
-    if (!tmp)
-        return NULL;
-
-    len = vsnprintf(tmp, len + 1, fmt, ap);
-    if (len < 0) {
-        mem_free(tmp);
-        return NULL;
-    }
-
-    return tmp;
-}
-
-char * __attribute__((format(__printf__, 1, 2)))
-mem_asprintf(const char *fmt, ...)
-{
-    char *tmp = NULL;
-    va_list ap;
-
-    va_start(ap, fmt);
-    tmp = mem_vasprintf(fmt, ap);
-    va_end(ap);
-
     return tmp;
 }
 
